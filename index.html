@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Google Docs → Gmail</title>
+<style>
+  :root{
+    --bg:#f6f7f8;
+    --surface:#ffffff;
+    --ink:#15181c;
+    --muted:#6b7280;
+    --hair:#e5e7eb;
+    --hair-strong:#d8dbdf;
+    --focus:#2563eb;
+    --ok:#15803d;
+    --btn:#15181c;
+    --btn-ink:#ffffff;
+    color-scheme: light;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    padding: env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);
+  }
+  .wrap{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 0 28px;
+  }
+
+  header.app{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:14px;
+  }
+  header.app h1{
+    font-size:19px;
+    letter-spacing:-0.01em;
+    font-weight:650;
+    margin:0;
+  }
+  header.app .sub{
+    color:var(--muted);
+    font-size:13px;
+    margin-top:2px;
+  }
+  header.app .hint{
+    color:var(--muted);
+    font-size:12.5px;
+    text-align:right;
+    max-width:260px;
+    flex:0 0 auto;
+  }
+
+  /* The editable canvas — the hero */
+  .canvas{
+    background:var(--surface);
+    border:1px solid var(--hair-strong);
+    border-radius:10px;
+    min-height:340px;
+    padding:22px 24px;
+    outline:none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    overflow-wrap:anywhere;
+    /* email-truthful preview font */
+    font-family: Arial, Helvetica, sans-serif;
+    font-size:14px;
+    line-height:1.6;
+    color:#222;
+  }
+  .canvas:focus{
+    border-color:var(--focus);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.14);
+  }
+  .canvas:empty:before{
+    content: attr(data-ph);
+    color:#9aa0a6;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size:14px;
+  }
+  /* readable defaults inside the canvas before inline styles are applied */
+  .canvas p{ margin:0 0 12px; }
+  .canvas h1{ font-size:22px; font-weight:600; margin:20px 0 10px; line-height:1.3; }
+  .canvas h2{ font-size:18px; font-weight:600; margin:18px 0 8px; line-height:1.3; }
+  .canvas h3{ font-size:16px; font-weight:600; margin:16px 0 6px; line-height:1.3; }
+  .canvas ul,.canvas ol{ margin:0 0 12px; padding-left:22px; }
+  .canvas li{ margin:0 0 4px; }
+  .canvas a{ color:#1a73e8; }
+
+  .bar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px;
+    margin-top:14px;
+  }
+  button{
+    font: inherit;
+    cursor:pointer;
+    border-radius:8px;
+    padding:9px 15px;
+    border:1px solid var(--hair-strong);
+    background:var(--surface);
+    color:var(--ink);
+    transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+  }
+  button:hover{ border-color:#c3c7cc; }
+  button:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; }
+  button.primary{
+    background:var(--btn);
+    color:var(--btn-ink);
+    border-color:var(--btn);
+    font-weight:550;
+  }
+  button.primary:hover{ background:#000; border-color:#000; }
+  button.ghost{ background:transparent; border-color:transparent; color:var(--muted); }
+  button.ghost:hover{ color:var(--ink); border-color:var(--hair); }
+  button:disabled{ opacity:.5; cursor:default; }
+
+  .status{
+    min-height:20px;
+    margin-top:12px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .status.ok{ color:var(--ok); }
+
+  .steps{
+    margin-top:22px;
+    padding-top:16px;
+    border-top:1px solid var(--hair);
+    color:var(--muted);
+    font-size:13px;
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+  }
+  .steps b{ color:var(--ink); font-weight:600; }
+  .spacer{ flex:1 1 auto; }
+
+  @media (max-width:560px){
+    header.app{ flex-direction:column; gap:4px; }
+    header.app .hint{ text-align:left; max-width:none; }
+    .canvas{ padding:18px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div>
+      <h1>Google Docs → Gmail</h1>
+      <div class="sub">Wklej treść z dokumentu, skopiuj gotowy mail.</div>
+    </div>
+    <div class="hint">Zaznacz tekst w Google Docs, skopiuj (Ctrl/Cmd+C) i wklej w pole poniżej.</div>
+  </header>
+
+  <div
+    id="canvas"
+    class="canvas"
+    contenteditable="true"
+    spellcheck="false"
+    data-ph="Wklej tutaj treść z Google Docs (Ctrl/Cmd+V). Formatowanie zostanie oczyszczone, a tekst możesz jeszcze poprawić przed skopiowaniem."
+  ></div>
+
+  <div class="bar">
+    <button id="copy" class="primary" disabled>Kopiuj do Gmaila</button>
+    <button id="copyHtml" disabled>Kopiuj HTML (źródło)</button>
+    <span class="spacer"></span>
+    <button id="clear" class="ghost" disabled>Wyczyść</button>
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  <div class="steps">
+    <span><b>1.</b> Wklej z Google Docs</span>
+    <span><b>2.</b> Popraw, jeśli trzeba</span>
+    <span><b>3.</b> „Kopiuj do Gmaila" → wklej w oknie maila</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var canvas   = document.getElementById('canvas');
+  var btnCopy  = document.getElementById('copy');
+  var btnHtml  = document.getElementById('copyHtml');
+  var btnClear = document.getElementById('clear');
+  var statusEl = document.getElementById('status');
+
+  var BASE_STYLE = 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222222;';
+
+  var INLINE = {
+    'P':'margin:0 0 12px 0;',
+    'H1':'font-size:22px;font-weight:600;margin:20px 0 10px;line-height:1.3;',
+    'H2':'font-size:18px;font-weight:600;margin:18px 0 8px;line-height:1.3;',
+    'H3':'font-size:16px;font-weight:600;margin:16px 0 6px;line-height:1.3;',
+    'H4':'font-size:14px;font-weight:600;margin:14px 0 6px;line-height:1.3;',
+    'H5':'font-size:13px;font-weight:600;margin:12px 0 6px;line-height:1.3;',
+    'H6':'font-size:13px;font-weight:600;margin:12px 0 6px;line-height:1.3;',
+    'UL':'margin:0 0 12px 0;padding-left:22px;',
+    'OL':'margin:0 0 12px 0;padding-left:22px;',
+    'LI':'margin:0 0 4px 0;',
+    'A':'color:#1a73e8;text-decoration:underline;',
+    'BLOCKQUOTE':'margin:0 0 12px 0;padding:4px 0 4px 14px;border-left:3px solid #dcdcdc;color:#555;',
+    'STRONG':'font-weight:700;',
+    'B':'font-weight:700;',
+    'HR':'border:none;border-top:1px solid #e3e3e3;margin:16px 0;',
+    'IMG':'max-width:100%;height:auto;'
+  };
+
+  var ALLOWED = {P:1,H1:1,H2:1,H3:1,H4:1,H5:1,H6:1,UL:1,OL:1,LI:1,STRONG:1,B:1,
+    EM:1,I:1,U:1,A:1,BR:1,BLOCKQUOTE:1,HR:1,S:1,STRIKE:1,SUP:1,SUB:1,IMG:1,
+    TABLE:1,THEAD:1,TBODY:1,TR:1,TD:1,TH:1};
+
+  function frag(el){
+    var f = document.createDocumentFragment();
+    while(el.firstChild){ f.appendChild(el.firstChild); }
+    return f;
+  }
+
+  // Replace a Google Docs <span> carrying inline formatting with semantic tags.
+  function convertSpan(span){
+    var st = span.style || {};
+    var fw = (st.fontWeight || '').toString().toLowerCase();
+    var fs = (st.fontStyle || '').toString().toLowerCase();
+    var td = ((st.textDecoration || '') + ' ' + (st.textDecorationLine || '')).toLowerCase();
+    var va = (st.verticalAlign || '').toString().toLowerCase();
+
+    var bold = fw === 'bold' || (/^\d+$/.test(fw) && parseInt(fw,10) >= 600);
+    var italic = fs.indexOf('italic') !== -1;
+    var underline = td.indexOf('underline') !== -1;
+    var strike = td.indexOf('line-through') !== -1;
+    var sup = va.indexOf('super') !== -1;
+    var sub = va.indexOf('sub') !== -1;
+
+    var tags = [];
+    if (bold) tags.push('strong');
+    if (italic) tags.push('em');
+    if (underline) tags.push('u');
+    if (strike) tags.push('s');
+    if (sup) tags.push('sup');
+    if (sub) tags.push('sub');
+
+    if (!tags.length){
+      span.replaceWith(frag(span));
+      return;
+    }
+    var inner = document.createElement(tags[tags.length-1]);
+    inner.appendChild(frag(span));
+    var outer = inner;
+    for (var i = tags.length-2; i >= 0; i--){
+      var w = document.createElement(tags[i]);
+      w.appendChild(outer);
+      outer = w;
+    }
+    span.replaceWith(outer);
+  }
+
+  function cleanHtml(rawHtml){
+    var doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+    var body = doc.body;
+
+    // drop non-content nodes
+    body.querySelectorAll('style,script,meta,title,link,head,noscript').forEach(function(n){ n.remove(); });
+
+    // Google wraps everything in <b style="font-weight:normal"> — unwrap it
+    body.querySelectorAll('b,strong').forEach(function(el){
+      var fw = (el.style && el.style.fontWeight || '').toString().toLowerCase();
+      if (fw === 'normal' || fw === '400'){ el.replaceWith(frag(el)); }
+    });
+
+    // convert all spans to semantic tags
+    var guard = 0;
+    var span;
+    while ((span = body.querySelector('span')) && guard < 20000){
+      convertSpan(span); guard++;
+    }
+
+    // fix links + strip every other attribute
+    body.querySelectorAll('*').forEach(function(el){
+      if (el.tagName === 'A'){
+        var href = el.getAttribute('href') || '';
+        if (href.indexOf('google.com/url') !== -1){
+          var m = href.match(/[?&]q=([^&]+)/);
+          if (m){ try { href = decodeURIComponent(m[1]); } catch(e){} }
+        }
+        for (var i = el.attributes.length-1; i>=0; i--){ el.removeAttribute(el.attributes[i].name); }
+        if (href){ el.setAttribute('href', href); el.setAttribute('target','_blank'); el.setAttribute('rel','noopener'); }
+      } else if (el.tagName === 'IMG'){
+        var src = el.getAttribute('src') || '';
+        var alt = el.getAttribute('alt') || '';
+        var w = el.getAttribute('width') || (el.style && parseInt(el.style.width,10)) || '';
+        var h = el.getAttribute('height') || (el.style && parseInt(el.style.height,10)) || '';
+        for (var k = el.attributes.length-1; k>=0; k--){ el.removeAttribute(el.attributes[k].name); }
+        if (!src){ el.remove(); return; }
+        el.setAttribute('src', src);
+        if (alt){ el.setAttribute('alt', alt); }
+        if (w){ el.setAttribute('width', w); }
+        if (h){ el.setAttribute('height', h); }
+      } else {
+        for (var j = el.attributes.length-1; j>=0; j--){ el.removeAttribute(el.attributes[j].name); }
+      }
+    });
+
+    // unwrap any tag outside the whitelist
+    var changed = true, pass = 0;
+    while (changed && pass < 50){
+      changed = false; pass++;
+      body.querySelectorAll('*').forEach(function(el){
+        if (!ALLOWED[el.tagName]){ el.replaceWith(frag(el)); changed = true; }
+      });
+    }
+
+    // drop empty inline/block wrappers
+    var again = true, p2 = 0;
+    while (again && p2 < 50){
+      again = false; p2++;
+      body.querySelectorAll('p,li,strong,b,em,i,u,s,a,sup,sub,blockquote,h1,h2,h3,h4,h5,h6').forEach(function(el){
+        if (el.textContent.replace(/\u00a0/g,' ').trim() === '' && !el.querySelector('img,br,hr')){
+          el.remove(); again = true;
+        }
+      });
+    }
+
+    return body.innerHTML;
+  }
+
+  function applyInline(root){
+    root.querySelectorAll('*').forEach(function(el){
+      var s = INLINE[el.tagName];
+      if (s) el.setAttribute('style', s);
+    });
+  }
+
+  function render(semanticHtml){
+    var tmp = document.createElement('div');
+    tmp.innerHTML = semanticHtml;
+    applyInline(tmp);
+    var container = document.createElement('div');
+    container.setAttribute('style', BASE_STYLE);
+    container.appendChild(frag(tmp));
+    canvas.innerHTML = container.outerHTML;
+    refresh();
+  }
+
+  function plainToHtml(text){
+    var esc = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var blocks = esc.split(/\n{2,}/).map(function(b){
+      return '<p>' + b.replace(/\n/g,'<br>') + '</p>';
+    });
+    return blocks.join('');
+  }
+
+  function hasContent(){
+    return canvas.textContent.replace(/\u00a0/g,' ').trim().length > 0;
+  }
+
+  function refresh(){
+    var on = hasContent();
+    btnCopy.disabled = !on;
+    btnHtml.disabled = !on;
+    btnClear.disabled = !on;
+  }
+
+  function outputHtml(){
+    // whatever is currently in the canvas (incl. the user's manual edits)
+    return canvas.innerHTML;
+  }
+
+  function flash(msg, ok){
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (ok ? ' ok' : '');
+    if (flash._t) clearTimeout(flash._t);
+    flash._t = setTimeout(function(){ statusEl.textContent=''; statusEl.className='status'; }, 4000);
+  }
+
+  function execCopy(html, plain){
+    var holder = document.createElement('div');
+    holder.contentEditable = 'true';
+    holder.setAttribute('style','position:fixed;left:-9999px;top:0;white-space:pre-wrap;');
+    holder.innerHTML = html;
+    document.body.appendChild(holder);
+    var range = document.createRange();
+    range.selectNodeContents(holder);
+    var sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+    sel.removeAllRanges();
+    holder.remove();
+    return ok;
+  }
+
+  async function copyRich(){
+    var html = outputHtml();
+    var plain = canvas.innerText;
+    var ok = false;
+    if (navigator.clipboard && window.ClipboardItem){
+      try {
+        await navigator.clipboard.write([ new ClipboardItem({
+          'text/html': new Blob([html], {type:'text/html'}),
+          'text/plain': new Blob([plain], {type:'text/plain'})
+        })]);
+        ok = true;
+      } catch(e){ ok = false; }
+    }
+    if (!ok){ ok = execCopy(html, plain); }
+    if (ok){ flash('Skopiowano. Wklej w oknie maila (Ctrl/Cmd+V).', true); }
+    else   { flash('Nie udało się skopiować automatycznie — zaznacz treść i użyj Ctrl/Cmd+C.', false); }
+  }
+
+  async function copyHtmlSource(){
+    var html = outputHtml();
+    var ok = false;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      try { await navigator.clipboard.writeText(html); ok = true; } catch(e){ ok = false; }
+    }
+    if (!ok){
+      var ta = document.createElement('textarea');
+      ta.value = html;
+      ta.setAttribute('style','position:fixed;left:-9999px;top:0;');
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+      ta.remove();
+    }
+    flash(ok ? 'Skopiowano kod HTML.' : 'Nie udało się skopiować kodu HTML.', ok);
+  }
+
+  function insertImage(dataUrl){
+    var imgHtml = '<img src="' + dataUrl + '" style="max-width:100%;height:auto;" alt="">';
+    canvas.focus();
+    var ok = false;
+    try { ok = document.execCommand('insertHTML', false, imgHtml); } catch(e){ ok = false; }
+    if (!ok){
+      var holder = document.createElement('div');
+      holder.innerHTML = imgHtml;
+      canvas.appendChild(holder.firstChild);
+    }
+    refresh();
+  }
+
+  function imageItem(cd){
+    if (!cd || !cd.items) return null;
+    for (var i = 0; i < cd.items.length; i++){
+      if (cd.items[i].type && cd.items[i].type.indexOf('image') === 0){ return cd.items[i]; }
+    }
+    return null;
+  }
+
+  canvas.addEventListener('paste', function(e){
+    var cd = e.clipboardData || window.clipboardData;
+    var html = cd ? cd.getData('text/html') : '';
+    var text = cd ? cd.getData('text/plain') : '';
+
+    // Pasting a standalone image (no HTML markup): embed it as a data URI.
+    if ((!html || !html.trim())){
+      var item = imageItem(cd);
+      if (item){
+        e.preventDefault();
+        var file = item.getAsFile();
+        if (file){
+          var reader = new FileReader();
+          reader.onload = function(ev){ insertImage(ev.target.result); };
+          reader.readAsDataURL(file);
+          flash('Wklejono grafikę.', true);
+        }
+        return;
+      }
+    }
+
+    e.preventDefault();
+    if (html && html.trim()){
+      render(cleanHtml(html));
+      flash('Wklejono i oczyszczono. Możesz jeszcze poprawić tekst.', true);
+    } else if (text){
+      render(plainToHtml(text));
+      flash('Wklejono i oczyszczono. Możesz jeszcze poprawić tekst.', true);
+    }
+  });
+
+  canvas.addEventListener('input', refresh);
+
+  btnCopy.addEventListener('click', copyRich);
+  btnHtml.addEventListener('click', copyHtmlSource);
+  btnClear.addEventListener('click', function(){
+    canvas.innerHTML = '';
+    refresh();
+    canvas.focus();
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
